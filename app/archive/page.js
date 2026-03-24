@@ -4,22 +4,18 @@ import Link from 'next/link'
 
 function fmt(ts) {
   return new Date(ts).toLocaleString('en-NG', {
-    timeZone: 'Africa/Lagos', day: '2-digit', month: 'short', year: 'numeric',
+    timeZone: 'Africa/Lagos',
+    day: '2-digit', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit', hour12: true,
   })
 }
-
 function naira(n) { return '₦' + Number(n).toLocaleString() }
-
 function decodeHtml(str) {
   if (!str) return str
   return str
     .replace(/&#(\d+);/g, (_, c) => String.fromCharCode(Number(c)))
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'")
 }
 
 export const revalidate = 0
@@ -38,11 +34,9 @@ export default async function ArchivePage() {
     seenUrls.add(a.url)
     return true
   })
-
   const flaggedPR = allPR.filter(a => !statuses[a.url] || statuses[a.url] === 'flagged')
-  const paidPR = allPR.filter(a => statuses[a.url] === 'paid')
-  const falsePR = allPR.filter(a => statuses[a.url] === 'false')
-
+  const paidPR    = allPR.filter(a => statuses[a.url] === 'paid')
+  const falsePR   = allPR.filter(a => statuses[a.url] === 'false')
   const totalDetected = allPR.length
   const totalOwed = flaggedPR.reduce((s, a) => s + (a.cost || 107500), 0)
   const totalRuns = runs.length
@@ -55,8 +49,8 @@ export default async function ArchivePage() {
     })
     if (!byDay[day]) byDay[day] = { runs: 0, pr: 0, cost: 0 }
     byDay[day].runs++
-    byDay[day].pr += r.pr_count || 0
-    byDay[day].cost += r.total_cost || 0
+    byDay[day].pr   += r.pr_count    || 0
+    byDay[day].cost += r.total_cost  || 0
   })
 
   return (
@@ -98,10 +92,10 @@ export default async function ArchivePage() {
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: 'Total PR Detected', value: totalDetected, icon: '🚨', color: totalDetected > 0 ? '#dc2626' : '#16a34a' },
-            { label: 'Amount Outstanding', value: naira(totalOwed), icon: '💰', sub: flaggedPR.length + ' flagged', color: totalOwed > 0 ? '#dc2626' : '#16a34a' },
-            { label: 'Audit Runs', value: totalRuns, icon: '📋', color: '#0a2342' },
-            { label: 'Runs With PR', value: flaggedRuns, icon: '⚠', color: flaggedRuns > 0 ? '#d97706' : '#16a34a' },
+            { label: 'Total PR Detected',    value: totalDetected,    icon: '🚨', color: totalDetected > 0 ? '#dc2626' : '#16a34a' },
+            { label: 'Amount Outstanding',   value: naira(totalOwed), icon: '💰', sub: flaggedPR.length + ' flagged', color: totalOwed > 0 ? '#dc2626' : '#16a34a' },
+            { label: 'Audit Runs',           value: totalRuns,        icon: '📋', color: '#0a2342' },
+            { label: 'Runs With PR',         value: flaggedRuns,      icon: '⚠',  color: flaggedRuns > 0 ? '#d97706' : '#16a34a' },
           ].map(s => (
             <div key={s.label} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
               <span className="text-2xl">{s.icon}</span>
@@ -131,7 +125,7 @@ export default async function ArchivePage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-100">
-                    {['Date', 'Audit Runs', 'PR Articles', 'Amount Due'].map(h => (
+                    {['Date', 'Audit Runs', 'PR Articles', 'Detected Amount'].map(h => (
                       <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
                     ))}
                   </tr>
@@ -190,8 +184,7 @@ export default async function ArchivePage() {
                       <tr key={art.url || i} className={`transition-colors ${rowBg}`}>
                         <td className="px-4 py-3 text-gray-400 font-mono text-xs">{i + 1}</td>
                         <td className="px-4 py-3 max-w-xs">
-                          <a href={art.url} target="_blank" rel="noopener noreferrer"
-                            className="font-medium text-gray-900 hover:text-red-700 hover:underline leading-snug block">{decodeHtml(art.title)}</a>
+                          <a href={art.url} target="_blank" rel="noopener noreferrer" className="font-medium text-gray-900 hover:text-red-700 hover:underline leading-snug block">{decodeHtml(art.title)}</a>
                           <p className="text-gray-400 text-xs mt-0.5 truncate">{art.url}</p>
                         </td>
                         <td className="px-4 py-3">
@@ -209,18 +202,14 @@ export default async function ArchivePage() {
                           <span className="inline-block bg-red-100 text-red-700 text-xs font-bold w-7 h-7 rounded-full leading-7 text-center">{art.score}</span>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
-                          {status === 'paid'
-                            ? <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">✅ Paid</span>
-                            : status === 'false'
-                            ? <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 font-medium">🚫 False +ve</span>
-                            : <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">🚨 Flagged</span>}
+                          {status === 'paid'  ? <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">✅ Paid</span>
+                          : status === 'false' ? <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 font-medium">🚫 False +ve</span>
+                          :                     <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">🚨 Flagged</span>}
                         </td>
                         <td className="px-4 py-3 font-bold whitespace-nowrap">
-                          {status === 'paid'
-                            ? <span className="text-green-600 line-through opacity-50">{naira(art.cost || 107500)}</span>
-                            : status === 'false'
-                            ? <span className="text-gray-400 line-through opacity-50">{naira(art.cost || 107500)}</span>
-                            : <span className="text-red-600">{naira(art.cost || 107500)}</span>}
+                          {status === 'paid'  ? <span className="text-green-600 line-through opacity-50">{naira(art.cost || 107500)}</span>
+                          : status === 'false' ? <span className="text-gray-400 line-through opacity-50">{naira(art.cost || 107500)}</span>
+                          :                      <span className="text-red-600">{naira(art.cost || 107500)}</span>}
                         </td>
                       </tr>
                     )
@@ -269,8 +258,8 @@ export default async function ArchivePage() {
                       {run.email_sent
                         ? <span className="text-green-600">✅ Sent</span>
                         : run.pr_count > 0
-                        ? <span className="text-amber-600">⚠ Not sent</span>
-                        : <span className="text-gray-400">—</span>}
+                          ? <span className="text-amber-600">⚠ Not sent</span>
+                          : <span className="text-gray-400">—</span>}
                     </td>
                     <td className="px-4 py-3">
                       {run.id && (
@@ -290,4 +279,4 @@ export default async function ArchivePage() {
       </main>
     </div>
   )
-}
+          }
