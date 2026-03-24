@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server'
 import { saveAuditRun } from '@/lib/storage'
-import { verifyToken } from '@/lib/auth'
-import { cookies } from 'next/headers'
 
 export const maxDuration = 60
 
@@ -37,7 +35,7 @@ function scoreArticle(title, contentText, author) {
     score += 3
   }
 
-  // [B] Strong signal: PR dateline (CITY, Month Day – or CITY, Month Day,)
+  // [B] Strong signal: PR dateline (CITY, Month Day –)
   if (/^[A-Z][A-Z\s,]+,\s+\w+\s+\d{1,2}[,.]?\s*(\d{4})?\s*[–—-]/m.test(excerpt)) {
     signals.push('[B] PR dateline')
     score += 3
@@ -55,21 +53,21 @@ function scoreArticle(title, contentText, author) {
     score += 3
   }
 
-  // Supporting signal: generic/unrecognised byline
+  // Supporting: generic byline
   const genericBylines = ['reporter','correspondent','staff','leadership','agency','press','admin','desk']
   if (!author || genericBylines.some(w => authorLower.includes(w))) {
     signals.push('Generic byline')
     score += 1
   }
 
-  // Supporting signal: very short article
+  // Supporting: short article
   const wordCount = contentText ? contentText.split(/\s+/).filter(Boolean).length : 0
   if (wordCount < 250) {
     signals.push('Short article')
     score += 1
   }
 
-  // Supporting signal: quote-heavy (PR articles often have many attributed quotes)
+  // Supporting: quote-heavy
   const quoteCount = (contentLower.match(/\b(said|stated|noted|added|explained|disclosed|reiterated)\b/g) || []).length
   if (quoteCount >= 4) {
     signals.push('Quote-heavy')
@@ -115,13 +113,10 @@ async function fetchRSSPage(page) {
 
       const { score, signals, isPR } = scoreArticle(title, contentText, author)
       items.push({
-        title,
-        url,
+        title, url,
         date: pubDate ? new Date(pubDate).toISOString() : new Date().toISOString(),
         author: author || 'Unknown',
-        score,
-        signals,
-        isPR,
+        score, signals, isPR,
         cost: isPR ? COST_PER_PR : 0,
       })
     }
@@ -131,17 +126,8 @@ async function fetchRSSPage(page) {
   }
 }
 
-export async function POST(request) {
-  // Verify auth cookie
-  try {
-    const cookieStore = await cookies()
-    const token = cookieStore.get('auth_token')?.value
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    await verifyToken(token)
-  } catch {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
+export async function POST() {
+  // Auth is handled by middleware — if this route is reached, user is authenticated
   try {
     const [r1, r2, r3] = await Promise.allSettled([
       fetchRSSPage(1), fetchRSSPage(2), fetchRSSPage(3),
