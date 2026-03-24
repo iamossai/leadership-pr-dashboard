@@ -9,6 +9,7 @@ function fmt(ts) {
     hour: '2-digit', minute: '2-digit', hour12: true,
   })
 }
+
 function naira(n) { return '\u20a6' + Number(n).toLocaleString() }
 
 export const revalidate = 0
@@ -20,7 +21,14 @@ export default async function Dashboard() {
   ])
   const isDemo = !isKVConfigured()
 
-  const allPR = runs.flatMap(r => r.pr_articles || [])
+  // Deduplicate PR articles by URL across all runs
+  const seenUrls = new Set()
+  const allPR = runs.flatMap(r => r.pr_articles || []).filter(a => {
+    if (seenUrls.has(a.url)) return false
+    seenUrls.add(a.url)
+    return true
+  })
+
   const flaggedPR = allPR.filter(a => !statuses[a.url] || statuses[a.url] === 'flagged')
   const totalCost = flaggedPR.reduce((s, a) => s + (a.cost || 107500), 0)
   const emailsSent = runs.filter(r => r.email_sent).length
@@ -46,6 +54,7 @@ export default async function Dashboard() {
           </div>
         </div>
       </header>
+
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {isDemo && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 flex items-start gap-3">
@@ -56,12 +65,37 @@ export default async function Dashboard() {
             </div>
           </div>
         )}
+
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: 'PR Articles Flagged', value: flaggedPR.length, icon: '\ud83d\udea8', sub: 'Last 48 hours', color: flaggedPR.length > 0 ? '#dc2626' : '#16a34a' },
-            { label: 'Total Amount Due', value: naira(totalCost), icon: '\ud83d\udcb0', sub: flaggedPR.length + ' \u00d7 \u20a6107,500', color: '#0a2342' },
-            { label: 'Audit Emails Sent', value: emailsSent, icon: '\ud83d\udce7', sub: 'of ' + runs.length + ' runs', color: '#0a2342' },
-            { label: 'Last Scan', value: lastRun ? fmt(lastRun) : 'No data', icon: '\u23f1', sub: 'Runs every 6 hours', color: '#0a2342' },
+            {
+              label: 'PR Articles Flagged',
+              value: flaggedPR.length,
+              icon: '\ud83d\udea8',
+              sub: 'Last 48 hours',
+              color: flaggedPR.length > 0 ? '#dc2626' : '#16a34a',
+            },
+            {
+              label: 'Total Amount Due',
+              value: naira(totalCost),
+              icon: '\ud83d\udcb0',
+              sub: flaggedPR.length > 0 ? flaggedPR.length + ' \u00d7 \u20a6107,500' : 'All clear',
+              color: totalCost > 0 ? '#dc2626' : '#16a34a',
+            },
+            {
+              label: 'Audit Emails Sent',
+              value: emailsSent,
+              icon: '\ud83d\udce7',
+              sub: 'of ' + runs.length + ' runs',
+              color: '#0a2342',
+            },
+            {
+              label: 'Last Scan',
+              value: lastRun ? fmt(lastRun) : 'No data',
+              icon: '\u23f1',
+              sub: 'Runs every 6 hours',
+              color: '#0a2342',
+            },
           ].map(s => (
             <div key={s.label} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
               <div className="flex items-start justify-between mb-3">
@@ -73,7 +107,9 @@ export default async function Dashboard() {
             </div>
           ))}
         </div>
+
         <PRArticlesPanel articles={allPR} statuses={statuses} />
+
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100">
             <h2 className="font-semibold text-gray-900">Audit Run History</h2>
@@ -95,24 +131,28 @@ export default async function Dashboard() {
                   {runs.map((run, i) => (
                     <tr key={run.id || i} className="hover:bg-blue-50/20 transition-colors">
                       <td className="px-4 py-3 text-gray-700 whitespace-nowrap font-medium">
-                        {run.id ? <Link href={`/scan/${run.id}`} className="hover:text-blue-700 hover:underline">{fmt(run.timestamp)}</Link> : fmt(run.timestamp)}
+                        {run.id
+                          ? <Link href={`/scan/${run.id}`} className="hover:text-blue-700 hover:underline">{fmt(run.timestamp)}</Link>
+                          : fmt(run.timestamp)}
                       </td>
                       <td className="px-4 py-3 text-gray-500">{run.articles_scanned || 0}</td>
                       <td className="px-4 py-3">
                         {run.pr_count > 0
                           ? <span className="bg-red-50 text-red-700 text-xs font-bold px-2.5 py-1 rounded-full border border-red-100">\ud83d\udea8 {run.pr_count} found</span>
-                          : <span className="bg-green-50 text-green-700 text-xs font-semibold px-2.5 py-1 rounded-full border border-green-100">\u2705 Clean</span>
-                        }
+                          : <span className="bg-green-50 text-green-700 text-xs font-semibold px-2.5 py-1 rounded-full border border-green-100">\u2705 Clean</span>}
                       </td>
                       <td className="px-4 py-3 font-semibold text-gray-700">{run.total_cost > 0 ? naira(run.total_cost) : '\u2014'}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 text-xs">
                         {run.email_sent
-                          ? <span className="text-green-600 text-xs">\u2705 Sent</span>
-                          : <span className="text-gray-400 text-xs">\u2014 No PR</span>
-                        }
+                          ? <span className="text-green-600">\u2705 Sent</span>
+                          : run.pr_count > 0
+                          ? <span className="text-amber-600">\u26a0\ufe0f Not sent</span>
+                          : <span className="text-gray-400">\u2014</span>}
                       </td>
                       <td className="px-4 py-3">
-                        {run.id && <Link href={`/scan/${run.id}`} className="text-blue-500 hover:text-blue-700 text-xs font-medium whitespace-nowrap">View scan \u2192</Link>}
+                        {run.id && (
+                          <Link href={`/scan/${run.id}`} className="text-blue-500 hover:text-blue-700 text-xs font-medium whitespace-nowrap">View scan \u2192</Link>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -121,8 +161,9 @@ export default async function Dashboard() {
             </div>
           )}
         </div>
+
         <p className="text-center text-gray-400 text-xs pb-4">Automated PR detection \u00b7 Leadership Media Group \u00a9 2026</p>
       </main>
     </div>
   )
-                    }
+}
