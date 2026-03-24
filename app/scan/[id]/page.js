@@ -11,6 +11,15 @@ function fmt(ts) {
   })
 }
 
+function fmtDate(ts) {
+  if (!ts) return '—'
+  const d = new Date(ts)
+  if (isNaN(d.getTime())) return '—'
+  return d.toLocaleDateString('en-NG', {
+    timeZone: 'Africa/Lagos', day: '2-digit', month: 'short', year: 'numeric'
+  })
+}
+
 function ScoreBadge({ score, isPR }) {
   if (isPR) return <span className="inline-flex items-center gap-1 bg-red-100 text-red-700 text-xs font-bold px-2.5 py-1 rounded-full border border-red-200">🚨 {score} — PR</span>
   if (score >= 3) return <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 text-xs font-bold px-2.5 py-1 rounded-full border border-amber-200">⚠ {score}</span>
@@ -45,6 +54,7 @@ export default async function ScanDetailPage({ params }) {
           </div>
         </div>
       </header>
+
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         <div>
           <div className="flex items-center gap-2 text-sm text-gray-400 mb-1">
@@ -53,6 +63,7 @@ export default async function ScanDetailPage({ params }) {
           <h2 className="text-xl font-bold text-gray-900">Scan — {fmt(run.timestamp)}</h2>
           <p className="text-gray-500 text-sm mt-1">{run.articles_scanned} articles scanned · Algorithm v2</p>
         </div>
+
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { label: 'Articles Scanned', value: run.articles_scanned || articles.length, icon: '📄', color: '#0a2342' },
@@ -67,6 +78,7 @@ export default async function ScanDetailPage({ params }) {
             </div>
           ))}
         </div>
+
         {articles.length === 0 ? (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-6 py-12 text-center">
             <span className="text-4xl">📫</span>
@@ -102,8 +114,9 @@ export default async function ScanDetailPage({ params }) {
                       <tr key={i} className={`transition-colors ${bg}`}>
                         <td className="px-4 py-3 text-gray-400 font-mono text-xs w-10">{i + 1}</td>
                         <td className="px-4 py-3" style={{ maxWidth: '360px' }}>
-                          <a href={art.url} target="_blank" rel="noopener noreferrer" className="font-medium text-gray-900 hover:text-blue-700 hover:underline leading-snug block">{art.title}</a>
-                          <p className="text-gray-400 text-xs mt-0.5">{new Date(art.pubDate).toLocaleDateString('en-NG', { timeZone: 'Africa/Lagos', day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                          <a href={art.url} target="_blank" rel="noopener noreferrer"
+                            className="font-medium text-gray-900 hover:text-blue-700 hover:underline leading-snug block">{art.title}</a>
+                          <p className="text-gray-400 text-xs mt-0.5">{fmtDate(art.date)}</p>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <span className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-700 text-xs px-2.5 py-1 rounded-full font-medium">👤 {art.author || 'Unknown'}</span>
