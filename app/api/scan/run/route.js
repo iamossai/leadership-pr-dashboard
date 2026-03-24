@@ -21,6 +21,7 @@ function scoreArticle(title, contentText, author) {
   const authorLower = (author || '').toLowerCase()
   const excerpt = contentText ? contentText.substring(0, 400) : ''
 
+  // [C] Strong signal: Promotional title keywords
   const promoWords = [
     'unveils','launches','partners','appoints','sponsors','donates',
     'wins award','receives award','celebrates','commissions','inaugurates',
@@ -34,40 +35,46 @@ function scoreArticle(title, contentText, author) {
     score += 3
   }
 
-  if (/^[A-Z][A-Z\s,]+,\s+\w+\s+\d{1,2}[,.]?\s*(\d{4})?\s*[\u2013\u2014-]/m.test(excerpt)) {
+  // [B] Strong signal: PR dateline
+  if (/^[A-Z][A-Z\s,]+,\s+\w+\s+\d{1,2}[,.]?\s*(\d{4})?\s*[–—-]/m.test(excerpt)) {
     signals.push('[B] PR dateline')
     score += 3
   }
 
+  // [A] Strong signal: About boilerplate
   const boilerplate = [
-    'about ','for more information','for further information',
-    'media contact','press contact','press release','distributed by',
-    'issued by','###','end --','end -','signed:','enquiries to',
-    'contact us','for enquiries'
+    'about ', 'for more information', 'for further information',
+    'media contact', 'press contact', 'press release', 'distributed by',
+    'issued by', '###', '– end –', '— end —', 'signed:', 'enquiries to',
+    'contact us', 'for enquiries'
   ]
   if (boilerplate.some(p => contentLower.includes(p))) {
     signals.push('[A] About boilerplate')
     score += 3
   }
 
+  // Supporting: generic byline
   const genericBylines = ['reporter','correspondent','staff','leadership','agency','press','admin','desk']
   if (!author || genericBylines.some(w => authorLower.includes(w))) {
     signals.push('Generic byline')
     score += 1
   }
 
+  // Supporting: short article
   const wordCount = contentText ? contentText.split(/\s+/).filter(Boolean).length : 0
   if (wordCount < 250) {
     signals.push('Short article')
     score += 1
   }
 
+  // Supporting: quote-heavy
   const quoteCount = (contentLower.match(/\b(said|stated|noted|added|explained|disclosed|reiterated)\b/g) || []).length
   if (quoteCount >= 4) {
     signals.push('Quote-heavy')
     score += 1
   }
 
+  // Negative signals
   if (/exclusive:|investigation:|probe:|scandal:/i.test(title)) score -= 3
   if (/\b(however|but)\b.{0,100}\b(critic|opposition|controversy|concern)\b/i.test(contentText)) score -= 1
 
@@ -79,7 +86,7 @@ function scoreArticle(title, contentText, author) {
 
 async function fetchRSSPage(page) {
   try {
-    const res = await fetch('https://leadership.ng/feed/?paged=' + page, {
+    const res = await fetch(`https://leadership.ng/feed/?paged=${page}`, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; LeadershipPRAudit/1.0)' },
       signal: AbortSignal.timeout(15000),
       cache: 'no-store',
@@ -90,7 +97,7 @@ async function fetchRSSPage(page) {
 
     for (const [, itemXml] of xml.matchAll(/<item>([\s\S]*?)<\/item>/g)) {
       const get = (tag) => {
-        const m = itemXml.match(new RegExp('<' + tag + '[^>]*>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?</' + tag + '>', 'i'))
+        const m = itemXml.match(new RegExp(`<${tag}[^>]*>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?</${tag}>`, 'i'))
         return m ? m[1].trim() : ''
       }
 
@@ -120,8 +127,9 @@ async function fetchRSSPage(page) {
 }
 
 export async function POST() {
+  // Auth handled by middleware
   try {
-    // Fetch 6 pages in parallel — 10 articles per page = ~60 articles
+    // Fetch 6 pages in parallel — 10 articles/page × 6 = ~60 articles
     const results = await Promise.allSettled([
       fetchRSSPage(1), fetchRSSPage(2), fetchRSSPage(3),
       fetchRSSPage(4), fetchRSSPage(5), fetchRSSPage(6),
@@ -129,6 +137,7 @@ export async function POST() {
 
     const raw = results.flatMap(r => r.status === 'fulfilled' ? r.value : [])
 
+    // Deduplicate by URL
     const seen = new Set()
     const all_articles = raw.filter(a => {
       if (seen.has(a.url)) return false
