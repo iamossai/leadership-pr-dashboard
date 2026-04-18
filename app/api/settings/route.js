@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, X-API-Key',
 }
 
 export async function OPTIONS() {
