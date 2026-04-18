@@ -16,7 +16,9 @@ export async function middleware(request) {
   }
 
   // Allow automated access to /api/settings via API key (no session required)
+  // Also allow OPTIONS preflight — browsers send it without the API key header
   if (pathname === '/api/settings') {
+    if (request.method === 'OPTIONS') return NextResponse.next()
     const apiKey = request.headers.get('x-api-key')
     const validKey = process.env.AUDIT_API_KEY || 'ldr_audit_k3y_2026'
     if (apiKey === validKey) return NextResponse.next()
