@@ -48,7 +48,7 @@ export default async function Dashboard() {
             </div>
             <nav className="flex items-center gap-2">
               <span className="text-blue-200/50 text-sm hidden sm:block px-2 py-1 rounded-lg bg-white/5 border border-white/10">Last 48 hours</span>
-              <Link href="/archive" className="text-blue-200 hover:text-white text-sm px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors">Archive (7d)</Link>
+              <Link href="/archive" className="text-blue-200 hover:text-white text-sm px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors">Archive (90d)</Link>
               <LogoutButton />
             </nav>
           </div>
