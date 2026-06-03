@@ -22,10 +22,18 @@ export const revalidate = 0
 
 export default async function ArchivePage() {
   const [runs, statuses] = await Promise.all([
-    getAuditRuns(168),
+    getAuditRuns(2160),
     getArticleStatuses(),
   ])
   const isDemo = !isKVConfigured()
+
+  // Every article scanned across runs (dedup by URL, newest kept)
+  const allScannedMap = new Map()
+  runs.forEach(r => (r.all_articles || []).forEach(a => {
+    const prev = allScannedMap.get(a.url)
+    if (!prev || new Date(a.date) > new Date(prev.date)) allScannedMap.set(a.url, a)
+  }))
+  const allScanned = [...allScannedMap.values()].sort((a, b) => new Date(b.date) - new Date(a.date))
 
   // Deduplicate PR articles by URL across all runs
   const seenUrls = new Set()
@@ -67,7 +75,7 @@ export default async function ArchivePage() {
             </div>
             <nav className="flex items-center gap-2">
               <Link href="/" className="text-blue-200 hover:text-white text-sm px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors">← Dashboard (48h)</Link>
-              <span className="text-blue-200/50 text-sm hidden sm:block px-2 py-1 rounded-lg bg-white/5 border border-white/10">7-day archive</span>
+              <span className="text-blue-200/50 text-sm hidden sm:block px-2 py-1 rounded-lg bg-white/5 border border-white/10">90-day archive</span>
               <LogoutButton />
             </nav>
           </div>
@@ -86,8 +94,8 @@ export default async function ArchivePage() {
         )}
 
         <div>
-          <h2 className="text-xl font-bold text-gray-900">7-Day Archive</h2>
-          <p className="text-gray-500 text-sm mt-1">Full audit history — last 7 days</p>
+          <h2 className="text-xl font-bold text-gray-900">90-Day Archive</h2>
+          <p className="text-gray-500 text-sm mt-1">Full audit history — last 90 days</p>
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -153,7 +161,7 @@ export default async function ArchivePage() {
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
             <div>
               <h3 className="font-semibold text-gray-900">All Detected PR Articles</h3>
-              <p className="text-gray-400 text-xs mt-0.5">Last 7 days · deduplicated by URL</p>
+              <p className="text-gray-400 text-xs mt-0.5">Last 90 days · deduplicated by URL</p>
             </div>
             {allPR.length > 0 && (
               <span className="bg-red-50 text-red-700 text-xs font-semibold px-3 py-1 rounded-full border border-red-100">
@@ -164,7 +172,7 @@ export default async function ArchivePage() {
           {allPR.length === 0 ? (
             <div className="px-6 py-12 text-center">
               <span className="text-4xl">✅</span>
-              <p className="text-gray-600 font-medium mt-3">No PR content detected in the past 7 days</p>
+              <p className="text-gray-600 font-medium mt-3">No PR content detected in the past 90 days</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -217,7 +225,7 @@ export default async function ArchivePage() {
                 </tbody>
                 <tfoot>
                   <tr className="bg-red-50 border-t-2 border-red-100">
-                    <td colSpan={7} className="px-4 py-3 font-bold text-gray-700 text-sm">TOTAL OUTSTANDING (7 DAYS)</td>
+                    <td colSpan={7} className="px-4 py-3 font-bold text-gray-700 text-sm">TOTAL OUTSTANDING (90 DAYS)</td>
                     <td className="px-4 py-3 font-bold text-red-700 text-base">{naira(totalOwed)}</td>
                   </tr>
                 </tfoot>
@@ -228,7 +236,7 @@ export default async function ArchivePage() {
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100">
-            <h3 className="font-semibold text-gray-900">Complete Audit Log (7 Days)</h3>
+            <h3 className="font-semibold text-gray-900">Complete Audit Log (90 Days)</h3>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -273,8 +281,44 @@ export default async function ArchivePage() {
           </div>
         </div>
 
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100">
+            <h3 className="font-semibold text-gray-900">All Scanned Articles ({allScanned.length})</h3>
+            <p className="text-gray-400 text-xs mt-0.5">Every article scanned in the last 90 days · deduplicated by URL</p>
+          </div>
+          {allScanned.length === 0 ? (
+            <div className="px-6 py-8 text-center text-gray-400 text-sm">No per-article scan data stored for this period yet.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-100">
+                    {['#', 'Article Title', 'Author', 'Published', 'Score', 'Class'].map(h => (
+                      <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {allScanned.map((art, i) => (
+                    <tr key={art.url || i} className={art.isPR ? 'bg-red-50/30 hover:bg-red-50/60' : 'hover:bg-gray-50/50'}>
+                      <td className="px-4 py-3 text-gray-400 font-mono text-xs">{i + 1}</td>
+                      <td className="px-4 py-3 max-w-md">
+                        <a href={art.url} target="_blank" rel="noopener noreferrer" className="font-medium text-gray-900 hover:text-blue-700 hover:underline leading-snug block">{decodeHtml(art.title)}</a>
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 text-xs whitespace-nowrap">{art.author || 'Unknown'}</td>
+                      <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">{fmt(art.date)}</td>
+                      <td className="px-4 py-3 text-center"><span className="inline-block bg-slate-100 text-slate-700 text-xs font-bold w-7 h-7 rounded-full leading-7 text-center">{art.score ?? '—'}</span></td>
+                      <td className="px-4 py-3 whitespace-nowrap">{art.isPR ? <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">PR</span> : <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">News</span>}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
         <p className="text-center text-gray-400 text-xs pb-4">
-          Leadership Media Group © 2026 · Automated PR detection · 7-day retention
+          Leadership Media Group © 2026 · Automated PR detection · 90-day retention
         </p>
       </main>
     </div>

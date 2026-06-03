@@ -13,15 +13,17 @@ export async function OPTIONS() {
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url)
-  const hours = parseInt(searchParams.get('hours') || '168') // default 7 days
+  const hours = parseInt(searchParams.get('hours') || '2160') // default 90 days
   const runs = await getAuditRuns(hours)
   return NextResponse.json({ runs, count: runs.length }, { headers: CORS })
 }
 
 export async function POST(request) {
-  const key = request.headers.get('X-API-Key')
-  const validKey = process.env.AUDIT_API_KEY || 'ldr_audit_k3y_2026'
-  if (key !== validKey) {
+  const expected = process.env.AUDIT_API_KEY
+  const auth = request.headers.get('authorization') || ''
+  const bearer = auth.toLowerCase().startsWith('bearer ') ? auth.slice(7).trim() : ''
+  const provided = bearer || (request.headers.get('X-API-Key') || '').trim()
+  if (!expected || provided !== expected) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: CORS })
   }
   try {
